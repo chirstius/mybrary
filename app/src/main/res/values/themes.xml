@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Mybrary" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Mybrary.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#1A237E</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_book_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Mybrary</item>
+    </style>
+</resources>

@@ -1,0 +1,40 @@
+# Android / Gradle
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+
+# App build outputs
+/app/build/
+/app/release/
+
+# Google services config (add yours per-device, never commit)
+google-services.json
+
+# Room schema exports (commit if you want migration tracking)
+# /app/schemas/
+
+# Kotlin
+*.class
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# IDE
+.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

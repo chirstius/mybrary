@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">mybrary</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="my_library">My Library</string>
+    <string name="scan_book">Scan Book</string>
+    <string name="add_book">Add Book</string>
+    <string name="search_books">Search books…</string>
+    <string name="no_books_found">No books found</string>
+    <string name="book_details">Book Details</string>
+    <string name="reading_progress">Reading Progress</string>
+    <string name="notes">Notes</string>
+    <string name="location">Location</string>
+    <string name="loaned_to">Loaned To</string>
+    <string name="due_date">Due Date</string>
+    <string name="tags">Tags</string>
+    <string name="status_read">Read</string>
+    <string name="status_reading">Reading</string>
+    <string name="status_to_read">To Read</string>
+    <string name="status_unread">Unread</string>
+    <string name="sync_with_sheets">Sync with Google Sheets</string>
+    <string name="camera_permission_required">Camera permission is required to scan barcodes</string>
+    <string name="point_camera_at_barcode">Point your camera at a book\'s barcode</string>
+    <string name="book_found">Book found!</string>
+    <string name="book_not_found">Book not found. Add manually?</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="delete_book_confirm">Delete this book from your library?</string>
+    <string name="mark_as_loaned">Mark as Loaned</string>
+    <string name="mark_as_returned">Mark as Returned</string>
+    <string name="syncing">Syncing…</string>
+    <string name="sync_complete">Sync complete</string>
+    <string name="sync_error">Sync error</string>
+    <string name="configure_sheet">Configure Google Sheet</string>
+    <string name="sheet_id_hint">Google Sheet ID (from URL)</string>
+</resources>
