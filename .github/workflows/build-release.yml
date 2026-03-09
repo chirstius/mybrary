@@ -20,14 +20,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Write local.properties
         run: |
           echo "google_books_api_key=${{ secrets.GOOGLE_BOOKS_API_KEY }}" > local.properties
 
       - name: Build debug APK
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          arguments: assembleDebug
+        run: |
+          sed -i 's/\r$//' gradlew gradle.properties gradle/wrapper/gradle-wrapper.properties
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/mybrary.apk
