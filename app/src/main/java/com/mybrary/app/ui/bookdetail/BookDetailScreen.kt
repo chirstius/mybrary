@@ -12,6 +12,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import androidx.compose.foundation.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,7 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -38,7 +41,7 @@ import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun BookDetailScreen(
     onBack: () -> Unit,
@@ -365,6 +368,7 @@ fun BookDetailScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun BookHeader(book: Book, onCoverTap: () -> Unit, onEditCoverTap: () -> Unit) {
     Row(
@@ -421,8 +425,23 @@ private fun BookHeader(book: Book, onCoverTap: () -> Unit, onEditCoverTap: () ->
                 book.publishedYear?.let { Text("$it", style = MaterialTheme.typography.bodySmall) }
                 book.pages?.let { Text("• $it pages", style = MaterialTheme.typography.bodySmall) }
             }
-            Text("ISBN: ${book.isbn}", style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+            val clipboard = LocalClipboardManager.current
+            val context = LocalContext.current
+            Text(
+                text = "ISBN: ${book.isbn}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                modifier = Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = {
+                        clipboard.setText(AnnotatedString(book.isbn))
+                        // Android 13+ shows a system clipboard confirmation; show Toast on older versions
+                        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+                            android.widget.Toast.makeText(context, "ISBN copied", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                ),
+            )
         }
     }
     book.description?.let {
@@ -519,7 +538,7 @@ private fun LoanSection(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun LoanDialog(
     currentLoanedTo: String,
