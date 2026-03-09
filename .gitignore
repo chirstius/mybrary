@@ -38,3 +38,11 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+
+# Build script logs
+build_out.txt
+build_output.txt
+*.log
+
+# Claude Code local config
+.claude/
