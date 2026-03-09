@@ -161,6 +161,39 @@ fun BookDetailScreen(
                     }
                 },
                 actions = {
+                    uiState.book?.let { b ->
+                        IconButton(onClick = {
+                            val isbnForLink = b.isbn13?.takeIf { it.isNotBlank() } ?: b.isbn
+                            val meta = listOfNotNull(
+                                b.publishedYear?.toString(),
+                                b.pages?.let { "$it pages" },
+                            ).joinToString(" · ")
+                            val desc = b.description
+                            val snippet = if (!desc.isNullOrBlank()) {
+                                if (desc.length > 200) "\"${desc.take(200)}…\"" else "\"$desc\""
+                            } else null
+                            val shareText = buildString {
+                                appendLine("📖 ${b.title}")
+                                if (b.authors.isNotEmpty()) appendLine("✍️ ${b.authors.joinToString(", ")}")
+                                if (meta.isNotEmpty()) appendLine(meta)
+                                if (snippet != null) { appendLine(); appendLine(snippet) }
+                                if (isbnForLink.isNotBlank()) {
+                                    appendLine()
+                                    appendLine("🔗 https://openlibrary.org/isbn/$isbnForLink")
+                                    appendLine()
+                                    append("mybrary://book?isbn=$isbnForLink")
+                                }
+                            }
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_SUBJECT, b.title)
+                                putExtra(Intent.EXTRA_TEXT, shareText)
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share Book"))
+                        }) {
+                            Icon(Icons.Default.Share, "Share")
+                        }
+                    }
                     IconButton(onClick = { showDeleteDialog = true }) {
                         Icon(Icons.Default.Delete, "Delete")
                     }
@@ -491,28 +524,30 @@ private fun LoanDialog(
 
     // Query contacts matching typed name (debounced, runs on IO thread)
     LaunchedEffect(name) {
-        if (name.length >= 2 && contactsGranted) {
-            kotlinx.coroutines.delay(250)
+        val query = name  // capture on main thread before any suspension
+        if (query.length >= 2 && contactsGranted) {
+            contactSuggestions = emptyList()  // clear stale results immediately
+            kotlinx.coroutines.delay(200)
             val results = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 val list = mutableListOf<String>()
                 val cursor = context.contentResolver.query(
-                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                    arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME),
-                    "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?",
-                    arrayOf("%$name%"),
-                    "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC",
+                    ContactsContract.Contacts.CONTENT_URI,
+                    arrayOf(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY),
+                    "${ContactsContract.Contacts.DISPLAY_NAME_PRIMARY} LIKE ? AND ${ContactsContract.Contacts.DISPLAY_NAME_PRIMARY} != ''",
+                    arrayOf("%$query%"),
+                    "${ContactsContract.Contacts.DISPLAY_NAME_PRIMARY} ASC",
                 )
                 cursor?.use {
-                    val nameCol = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-                    val seen = mutableSetOf<String>()
-                    while (it.moveToNext() && list.size < 5) {
+                    val nameCol = it.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                    while (it.moveToNext()) {
                         val contactName = it.getString(nameCol) ?: continue
-                        if (seen.add(contactName)) list.add(contactName)
+                        if (contactName.isNotBlank()) list.add(contactName)
+                        if (list.size >= 8) break
                     }
                 }
                 list
             }
-            contactSuggestions = results.filter { it != name }
+            contactSuggestions = results.filter { it != query }
         } else {
             contactSuggestions = emptyList()
         }

@@ -3,6 +3,8 @@ package com.mybrary.app.data.local
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
+data class LibraryCount(val libraryId: String, @ColumnInfo(name = "cnt") val cnt: Int)
+
 @Dao
 interface BookDao {
 
@@ -68,6 +70,9 @@ interface BookDao {
 
     @Query("SELECT COUNT(*) FROM books WHERE libraryId = :libraryId")
     suspend fun count(libraryId: String): Int
+
+    @Query("SELECT libraryId, COUNT(*) as cnt FROM books GROUP BY libraryId")
+    fun observeLibraryCounts(): Flow<List<LibraryCount>>
 
     @Query("SELECT * FROM books WHERE loanedTo IS NOT NULL AND loanedTo != '' AND libraryId = :libraryId")
     fun observeLoaned(libraryId: String): Flow<List<BookEntity>>

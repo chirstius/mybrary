@@ -78,4 +78,7 @@ class BookRepository @Inject constructor(
     }
 
     suspend fun count(libraryId: String): Int = bookDao.count(libraryId)
+
+    fun observeLibraryCounts(): Flow<Map<String, Int>> =
+        bookDao.observeLibraryCounts().map { list -> list.associate { it.libraryId to it.cnt } }
 }

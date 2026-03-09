@@ -1,7 +1,12 @@
 package com.mybrary.app.ui.library
 
+import android.content.Context
+import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mybrary.app.data.prefs.SpreadsheetPreferences
+import com.mybrary.app.data.remote.model.SheetColumns
 import com.mybrary.app.data.repository.BookRepository
 import com.mybrary.app.data.repository.GenreRepository
 import com.mybrary.app.data.sync.LibraryManager
@@ -11,10 +16,12 @@ import com.mybrary.app.domain.model.Book
 import com.mybrary.app.domain.model.ReadingStatus
 import com.mybrary.app.domain.model.UserLibrary
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 enum class SortOption { DATE_ADDED, TITLE, AUTHOR }
@@ -41,16 +48,31 @@ data class LibraryUiState(
     val showLibrarySwitcher: Boolean = false,
     val isCreatingLibrary: Boolean = false,
     val createLibraryError: String? = null,
+    val spreadsheetUrl: String? = null,
+    val libraryBookCounts: Map<String, Int> = emptyMap(),
+)
+
+private data class SwitcherState(
+    val showSwitcher: Boolean,
+    val creating: Boolean,
+    val error: String?,
+    val spreadsheetUrl: String?,
+    val libraryCounts: Map<String, Int>,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val bookRepository: BookRepository,
     private val genreRepository: GenreRepository,
     private val syncService: SheetsSyncService,
     private val libraryManager: LibraryManager,
+    private val prefs: SpreadsheetPreferences,
 ) : ViewModel() {
+
+    private val _exportUri = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
+    val exportUri: SharedFlow<Uri> = _exportUri.asSharedFlow()
 
     init {
         // Silently sync every 5 minutes while the app is in the foreground
@@ -125,16 +147,21 @@ class LibraryViewModel @Inject constructor(
         bookFilterState,
         libraryManager.activeLibrary,
         libraryManager.libraries,
-        combine(_showLibrarySwitcher, _isCreatingLibrary, _createLibraryError) { s, c, e ->
-            Triple(s, c, e)
+        combine(
+            _showLibrarySwitcher, _isCreatingLibrary, _createLibraryError,
+            prefs.spreadsheetId, bookRepository.observeLibraryCounts(),
+        ) { s, c, e, id, counts ->
+            SwitcherState(s, c, e, id?.let { "https://docs.google.com/spreadsheets/d/$it" }, counts)
         },
-    ) { base, activeLib, allLibs, (showSwitcher, creating, error) ->
+    ) { base, activeLib, allLibs, switcher ->
         base.copy(
             activeLibrary = activeLib,
             allLibraries = allLibs,
-            showLibrarySwitcher = showSwitcher,
-            isCreatingLibrary = creating,
-            createLibraryError = error,
+            showLibrarySwitcher = switcher.showSwitcher,
+            isCreatingLibrary = switcher.creating,
+            createLibraryError = switcher.error,
+            spreadsheetUrl = switcher.spreadsheetUrl,
+            libraryBookCounts = switcher.libraryCounts,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
@@ -204,6 +231,34 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
+    fun exportLibraryCsv(libraryId: String, libraryName: String) {
+        viewModelScope.launch {
+            val books = bookRepository.observeAll(libraryId).first()
+            val csv = buildString {
+                appendLine(SheetColumns.HEADER_ROW.joinToString(",") { it.csvEscape() })
+                books.forEach { book ->
+                    appendLine(listOf(
+                        book.id, book.isbn, book.isbn13 ?: "", book.title,
+                        book.authors.joinToString(";"), book.publisher ?: "",
+                        book.publishedYear?.toString() ?: "", book.pages?.toString() ?: "",
+                        book.description ?: "", book.coverUrl ?: "",
+                        book.status.name, book.readingProgress.toString(),
+                        book.notes, book.location, book.tags.joinToString(";"),
+                        book.loanedTo ?: "", book.loanDueDate?.toString() ?: "",
+                        book.dateAdded.toString(), book.dateModified.toString(),
+                        book.genre ?: "",
+                    ).joinToString(",") { it.csvEscape() })
+                }
+            }
+            val safeName = libraryName.replace(Regex("[^\\w\\s-]"), "").trim().replace(" ", "_")
+            val file = File(context.cacheDir, "exports/${safeName}_export.csv")
+            file.parentFile?.mkdirs()
+            file.writeText(csv)
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            _exportUri.emit(uri)
+        }
+    }
+
     fun deleteBook(book: Book) {
         viewModelScope.launch {
             syncService.deleteBookFromSheet(book)
@@ -211,3 +266,6 @@ class LibraryViewModel @Inject constructor(
         }
     }
 }
+
+private fun String.csvEscape(): String =
+    if (contains(',') || contains('"') || contains('\n')) "\"${replace("\"", "\"\"")}\"" else this

@@ -2,6 +2,7 @@ package com.mybrary.app.ui
 
 import androidx.compose.runtime.*
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
@@ -14,7 +15,7 @@ import com.mybrary.app.ui.scanner.ScannerScreen
 import com.mybrary.app.ui.settings.SettingsScreen
 import com.mybrary.app.ui.setup.SetupScreen
 
-private object Routes {
+internal object Routes {
     const val AUTH = "auth"
     const val SETUP = "setup"
     const val SETTINGS = "settings"
@@ -28,9 +29,14 @@ private object Routes {
 }
 
 @Composable
-fun MybraryApp() {
+fun MybraryApp(
+    startIsbn: String = "",
+    onNavControllerReady: (NavController) -> Unit = {},
+) {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = hiltViewModel()
+
+    LaunchedEffect(Unit) { onNavControllerReady(navController) }
 
     NavHost(navController = navController, startDestination = Routes.AUTH) {
         composable(Routes.AUTH) {
@@ -39,6 +45,9 @@ fun MybraryApp() {
                 onSignedIn = {
                     navController.navigate(Routes.LIBRARY) {
                         popUpTo(Routes.AUTH) { inclusive = true }
+                    }
+                    if (startIsbn.isNotBlank()) {
+                        navController.navigate(Routes.addBook(startIsbn))
                     }
                 },
             )

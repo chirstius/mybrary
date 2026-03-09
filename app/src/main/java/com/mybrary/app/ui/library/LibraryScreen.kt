@@ -1,5 +1,7 @@
 package com.mybrary.app.ui.library
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mybrary.app.domain.model.Book
@@ -31,9 +34,21 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showSortMenu by remember { mutableStateOf(false) }
     var showAccountMenu by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.exportUri.collect { uri ->
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/csv"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            context.startActivity(Intent.createChooser(intent, "Export Library"))
+        }
+    }
 
     if (showSignOutDialog) {
         AlertDialog(
@@ -53,6 +68,7 @@ fun LibraryScreen(
         LibrarySwitcherSheet(
             libraries = uiState.allLibraries,
             activeLibraryId = uiState.activeLibrary?.id,
+            libraryCounts = uiState.libraryBookCounts,
             isCreating = uiState.isCreatingLibrary,
             createError = uiState.createLibraryError,
             onSwitch = viewModel::switchLibrary,
@@ -60,6 +76,7 @@ fun LibraryScreen(
             onSetIcon = viewModel::setLibraryIcon,
             onEdit = viewModel::editLibrary,
             onDelete = viewModel::deleteLibrary,
+            onExport = { id, name -> viewModel.exportLibraryCsv(id, name) },
             onDismiss = viewModel::dismissLibrarySwitcher,
         )
     }
@@ -77,10 +94,20 @@ fun LibraryScreen(
             TopAppBar(
                 title = {
                     val active = uiState.activeLibrary
-                    Text(
-                        text = if (active != null) "${active.icon}  ${active.name}" else "mybrary",
-                        modifier = Modifier.clickable { viewModel.showLibrarySwitcher() },
-                    )
+                    Column(modifier = Modifier.clickable { viewModel.showLibrarySwitcher() }) {
+                        Text(
+                            text = if (active != null) "${active.icon}  ${active.name}" else "mybrary",
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        if (active != null) {
+                            val count = uiState.libraryBookCounts[active.id] ?: 0
+                            Text(
+                                text = "$count item${if (count != 1) "s" else ""}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.65f),
+                            )
+                        }
+                    }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.sync() }, enabled = !uiState.isSyncing) {
@@ -116,6 +143,16 @@ fun LibraryScreen(
                                 onClick = { showAccountMenu = false; onOpenSettings() },
                                 leadingIcon = { Icon(Icons.Default.Settings, null) },
                             )
+                            if (uiState.spreadsheetUrl != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Open in Google Sheets") },
+                                    onClick = {
+                                        showAccountMenu = false
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(uiState.spreadsheetUrl)))
+                                    },
+                                    leadingIcon = { Icon(Icons.Default.OpenInBrowser, null) },
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Sign Out") },
                                 onClick = { showAccountMenu = false; showSignOutDialog = true },
@@ -193,6 +230,7 @@ fun LibraryScreen(
 private fun LibrarySwitcherSheet(
     libraries: List<UserLibrary>,
     activeLibraryId: String?,
+    libraryCounts: Map<String, Int>,
     isCreating: Boolean,
     createError: String?,
     onSwitch: (String) -> Unit,
@@ -200,6 +238,7 @@ private fun LibrarySwitcherSheet(
     onSetIcon: (String, String) -> Unit,
     onEdit: (String, String, String) -> Unit,
     onDelete: (String) -> Unit,
+    onExport: (id: String, name: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -220,6 +259,7 @@ private fun LibrarySwitcherSheet(
             canDelete = libraries.size > 1,
             onEdit = { name, icon -> onEdit(lib.id, name, icon); editingLibrary = null },
             onDelete = { onDelete(lib.id); editingLibrary = null },
+            onExport = { onExport(lib.id, lib.name); editingLibrary = null },
             onDismiss = { editingLibrary = null },
         )
     }
@@ -241,6 +281,14 @@ private fun LibrarySwitcherSheet(
                 ) {
                     ListItem(
                         headlineContent = { Text(library.name) },
+                        supportingContent = {
+                            val count = libraryCounts[library.id] ?: 0
+                            Text(
+                                "$count item${if (count != 1) "s" else ""}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            )
+                        },
                         leadingContent = {
                             Text(library.icon, style = MaterialTheme.typography.titleLarge,
                                 modifier = Modifier.padding(horizontal = 4.dp))
@@ -285,6 +333,7 @@ private fun EditLibraryDialog(
     canDelete: Boolean,
     onEdit: (name: String, icon: String) -> Unit,
     onDelete: () -> Unit,
+    onExport: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     var name by remember { mutableStateOf(library.name) }
@@ -344,6 +393,14 @@ private fun EditLibraryDialog(
                             Text(emoji, modifier = Modifier.padding(8.dp), style = MaterialTheme.typography.titleLarge)
                         }
                     }
+                }
+                TextButton(
+                    onClick = onExport,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Export as CSV")
                 }
                 if (canDelete) {
                     TextButton(
