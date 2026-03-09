@@ -28,7 +28,7 @@ jobs:
           echo "google_books_api_key=${{ secrets.GOOGLE_BOOKS_API_KEY }}" > local.properties
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: chmod +x gradlew && ./gradlew assembleDebug
 
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/mybrary.apk
