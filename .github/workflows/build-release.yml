@@ -27,11 +27,14 @@ jobs:
         run: |
           echo "google_books_api_key=${{ secrets.GOOGLE_BOOKS_API_KEY }}" > local.properties
 
-      - name: Build debug APK
+      - name: Fix Gradle config for Linux CI
         run: |
           sed -i 's/\r$//' gradlew gradle.properties gradle/wrapper/gradle-wrapper.properties
+          sed -i '/org.gradle.java.home/d' gradle.properties
           chmod +x gradlew
-          ./gradlew assembleDebug
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
 
       - name: Rename APK
         run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/mybrary.apk
