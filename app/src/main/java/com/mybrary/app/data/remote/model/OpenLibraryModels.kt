@@ -42,4 +42,5 @@ data class OlSearchDoc(
     @SerializedName("number_of_pages_median") val numberOfPagesMedian: Int?,
     @SerializedName("isbn") val isbn: List<String>?,
     @SerializedName("cover_i") val coverId: Long?,
+    val subject: List<String>?,
 )

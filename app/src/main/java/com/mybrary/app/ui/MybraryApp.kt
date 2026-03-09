@@ -11,9 +11,13 @@ import com.mybrary.app.ui.auth.AuthViewModel
 import com.mybrary.app.ui.bookdetail.BookDetailScreen
 import com.mybrary.app.ui.library.LibraryScreen
 import com.mybrary.app.ui.scanner.ScannerScreen
+import com.mybrary.app.ui.settings.SettingsScreen
+import com.mybrary.app.ui.setup.SetupScreen
 
 private object Routes {
     const val AUTH = "auth"
+    const val SETUP = "setup"
+    const val SETTINGS = "settings"
     const val LIBRARY = "library"
     const val SCANNER = "scanner"
     const val BOOK_DETAIL = "book/{bookId}"
@@ -40,6 +44,19 @@ fun MybraryApp() {
             )
         }
 
+        // Accessible from the Library's "Sheet Settings" menu for power users
+        composable(Routes.SETUP) {
+            SetupScreen(
+                onDone = { navController.popBackStack() },
+            )
+        }
+
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+            )
+        }
+
         composable(Routes.LIBRARY) {
             LibraryScreen(
                 onBookClick = { bookId -> navController.navigate(Routes.bookDetail(bookId)) },
@@ -50,6 +67,7 @@ fun MybraryApp() {
                         popUpTo(0) { inclusive = true }
                     }
                 },
+                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
             )
         }
 
@@ -87,6 +105,7 @@ fun MybraryApp() {
         ) { backStackEntry ->
             val isbn = backStackEntry.arguments?.getString("isbn") ?: ""
             AddBookScreen(
+                prefillIsbn = isbn,
                 onBack = { navController.popBackStack() },
                 onSaved = { bookId ->
                     navController.navigate(Routes.bookDetail(bookId)) {

@@ -3,6 +3,7 @@ package com.mybrary.app.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -20,6 +21,7 @@ import coil.compose.AsyncImage
 import com.mybrary.app.domain.model.Book
 import com.mybrary.app.domain.model.ReadingStatus
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BookCard(
     book: Book,
@@ -88,6 +90,19 @@ fun BookCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     StatusChip(book.status)
+                    if (!book.genre.isNullOrBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
+                            Text(
+                                text = book.genre,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        }
+                    }
                     if (!book.loanedTo.isNullOrBlank()) {
                         Icon(
                             imageVector = Icons.Default.SwapHoriz,
@@ -113,10 +128,47 @@ fun BookCard(
                     }
                 }
                 if (book.status == ReadingStatus.READING && book.readingProgress > 0) {
-                    LinearProgressIndicator(
-                        progress = { book.readingProgress / 100f },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(16.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(book.readingProgress / 100f)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.primary)
+                                .align(Alignment.CenterStart),
+                        )
+                        Text(
+                            text = "${book.readingProgress}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                if (book.tags.isNotEmpty()) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        book.tags.take(4).forEach { tag ->
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                            ) {
+                                Text(
+                                    text = tag,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -130,6 +182,7 @@ fun StatusChip(status: ReadingStatus) {
         ReadingStatus.READING -> "Reading" to Color(0xFF1565C0)
         ReadingStatus.TO_READ -> "To Read" to Color(0xFF6A1B9A)
         ReadingStatus.UNREAD -> "Unread" to Color(0xFF546E7A)
+        ReadingStatus.DNF -> "DNF" to Color(0xFFB71C1C)
     }
     Surface(
         shape = RoundedCornerShape(4.dp),

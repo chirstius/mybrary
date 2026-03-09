@@ -1,5 +1,16 @@
 package com.mybrary.app.ui.bookdetail
 
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
+import android.provider.ContactsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,25 +24,99 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.mybrary.app.domain.model.Book
 import com.mybrary.app.domain.model.ReadingStatus
+import com.mybrary.app.ui.components.GenreDropdown
 import com.mybrary.app.ui.components.StatusChip
+import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun BookDetailScreen(
     onBack: () -> Unit,
     viewModel: BookDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val genres by viewModel.genres.collectAsState()
+    val context = LocalContext.current
+    val contactsPermission = rememberPermissionState(Manifest.permission.READ_CONTACTS)
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showLoanDialog by remember { mutableStateOf(false) }
+    var showFullCover by remember { mutableStateOf(false) }
+    var showCoverPickerRow by remember { mutableStateOf(false) }
+    var showCoverUrlField by remember { mutableStateOf(false) }
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+    // Track raw tags text independently so commas aren't swallowed on each recompose
+    var tagsText by remember(uiState.book?.id) {
+        mutableStateOf(uiState.book?.tags?.joinToString(", ") ?: "")
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            viewModel.updateCoverUrl(uri.toString())
+            showCoverPickerRow = false
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            cameraImageUri?.let { viewModel.updateCoverUrl(it.toString()) }
+            showCoverPickerRow = false
+        }
+    }
+
+    fun launchCamera() {
+        val file = File(context.cacheDir, "cover_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        cameraImageUri = uri
+        cameraLauncher.launch(uri)
+    }
+
+    // Full-screen cover viewer
+    if (showFullCover && !uiState.book?.coverUrl.isNullOrBlank()) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showFullCover = false },
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.9f))
+                    .clickable { showFullCover = false },
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = uiState.book?.coverUrl,
+                    contentDescription = "Book cover full size",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxWidth().padding(32.dp),
+                )
+                IconButton(
+                    onClick = { showFullCover = false },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                ) {
+                    Icon(Icons.Default.Close, "Close", tint = Color.White)
+                }
+            }
+        }
+    }
 
     LaunchedEffect(uiState.isSaved) {
         if (uiState.isSaved) onBack()
@@ -56,6 +141,8 @@ fun BookDetailScreen(
         LoanDialog(
             currentLoanedTo = uiState.book?.loanedTo ?: "",
             currentDueDate = uiState.book?.loanDueDate,
+            contactsGranted = contactsPermission.status.isGranted,
+            onRequestContactsPermission = { contactsPermission.launchPermissionRequest() },
             onConfirm = { name, date ->
                 viewModel.setLoaned(name, date)
                 showLoanDialog = false
@@ -114,7 +201,59 @@ fun BookDetailScreen(
                 .verticalScroll(rememberScrollState()),
         ) {
             // Header: cover + basic info
-            BookHeader(book)
+            BookHeader(
+                book = book,
+                onCoverTap = { showFullCover = true },
+                onEditCoverTap = { showCoverPickerRow = !showCoverPickerRow },
+            )
+
+            // Cover picker row
+            if (showCoverPickerRow) {
+                Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text("Cover:", style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        OutlinedButton(
+                            onClick = { galleryLauncher.launch(PickVisualMediaRequest(ImageOnly)) },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Icon(Icons.Default.PhotoLibrary, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Gallery", style = MaterialTheme.typography.labelMedium)
+                        }
+                        OutlinedButton(
+                            onClick = { launchCamera() },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Icon(Icons.Default.CameraAlt, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Camera", style = MaterialTheme.typography.labelMedium)
+                        }
+                        OutlinedButton(
+                            onClick = { showCoverUrlField = !showCoverUrlField },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        ) {
+                            Icon(Icons.Default.Link, null, Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("URL", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                    if (showCoverUrlField) {
+                        OutlinedTextField(
+                            value = book.coverUrl ?: "",
+                            onValueChange = { viewModel.updateCoverUrl(it) },
+                            label = { Text("Cover image URL") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            leadingIcon = { Icon(Icons.Default.Image, null) },
+                        )
+                    }
+                }
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -157,10 +296,11 @@ fun BookDetailScreen(
                     leadingIcon = { Icon(Icons.Default.Place, null) },
                 )
 
-                // Tags
+                // Tags — use local state so commas aren't eaten on every recompose
                 OutlinedTextField(
-                    value = book.tags.joinToString(", "),
+                    value = tagsText,
                     onValueChange = { raw ->
+                        tagsText = raw
                         viewModel.updateTags(
                             raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
                         )
@@ -169,6 +309,13 @@ fun BookDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     leadingIcon = { Icon(Icons.Default.Label, null) },
+                )
+
+                // Genre
+                GenreDropdown(
+                    value = book.genre ?: "",
+                    onValueChange = viewModel::updateGenre,
+                    genres = genres,
                 )
 
                 // Loan section
@@ -186,7 +333,7 @@ fun BookDetailScreen(
 }
 
 @Composable
-private fun BookHeader(book: Book) {
+private fun BookHeader(book: Book, onCoverTap: () -> Unit, onEditCoverTap: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -199,7 +346,8 @@ private fun BookHeader(book: Book) {
                 .width(90.dp)
                 .height(130.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable { onCoverTap() },
             contentAlignment = Alignment.Center,
         ) {
             if (!book.coverUrl.isNullOrBlank()) {
@@ -213,6 +361,20 @@ private fun BookHeader(book: Book) {
                 Icon(Icons.Default.MenuBook, null,
                     modifier = Modifier.size(40.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            // Edit cover button overlay
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp)
+                    .size(24.dp)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), RoundedCornerShape(12.dp))
+                    .clickable { onEditCoverTap() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.Edit, "Edit cover",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary)
             }
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -311,42 +473,130 @@ private fun LoanSection(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 private fun LoanDialog(
     currentLoanedTo: String,
     currentDueDate: LocalDate?,
+    contactsGranted: Boolean,
+    onRequestContactsPermission: () -> Unit,
     onConfirm: (String, LocalDate?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val context = LocalContext.current
     var name by remember { mutableStateOf(currentLoanedTo) }
-    var dueDateStr by remember { mutableStateOf(currentDueDate?.toString() ?: "") }
+    var selectedDate by remember { mutableStateOf(currentDueDate) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var contactSuggestions by remember { mutableStateOf(emptyList<String>()) }
+
+    // Query contacts matching typed name (debounced, runs on IO thread)
+    LaunchedEffect(name) {
+        if (name.length >= 2 && contactsGranted) {
+            kotlinx.coroutines.delay(250)
+            val results = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val list = mutableListOf<String>()
+                val cursor = context.contentResolver.query(
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                    arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME),
+                    "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} LIKE ?",
+                    arrayOf("%$name%"),
+                    "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC",
+                )
+                cursor?.use {
+                    val nameCol = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                    val seen = mutableSetOf<String>()
+                    while (it.moveToNext() && list.size < 5) {
+                        val contactName = it.getString(nameCol) ?: continue
+                        if (seen.add(contactName)) list.add(contactName)
+                    }
+                }
+                list
+            }
+            contactSuggestions = results.filter { it != name }
+        } else {
+            contactSuggestions = emptyList()
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDate
+                ?.let { java.util.concurrent.TimeUnit.DAYS.toMillis(it.toEpochDay()) }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val millis = datePickerState.selectedDateMillis
+                    selectedDate = millis?.let {
+                        LocalDate.ofEpochDay(java.util.concurrent.TimeUnit.MILLISECONDS.toDays(it))
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showDatePicker = false }) { Text("Cancel") } },
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Loan Book") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Contact name with autocomplete suggestions
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text("Loaned to") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Person, null) },
                 )
-                OutlinedTextField(
-                    value = dueDateStr,
-                    onValueChange = { dueDateStr = it },
-                    label = { Text("Due date (YYYY-MM-DD)") },
-                    singleLine = true,
+                if (!contactsGranted && name.length >= 2) {
+                    TextButton(onClick = onRequestContactsPermission) {
+                        Icon(Icons.Default.Contacts, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Allow contacts to autocomplete", style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+                if (contactSuggestions.isNotEmpty()) {
+                    Card(elevation = CardDefaults.cardElevation(4.dp)) {
+                        Column {
+                            contactSuggestions.forEach { suggestion ->
+                                TextButton(
+                                    onClick = {
+                                        name = suggestion
+                                        contactSuggestions = emptyList()
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(suggestion, modifier = Modifier.fillMaxWidth())
+                                }
+                            }
+                        }
+                    }
+                }
+                // Due date with picker
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
                     modifier = Modifier.fillMaxWidth(),
-                )
+                ) {
+                    Icon(Icons.Default.CalendarMonth, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(selectedDate?.format(DateTimeFormatter.ofPattern("MMM d, yyyy")) ?: "Set due date")
+                }
+                if (selectedDate != null) {
+                    TextButton(
+                        onClick = { selectedDate = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Clear due date") }
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                val date = runCatching { LocalDate.parse(dueDateStr) }.getOrNull()
-                onConfirm(name, date)
-            }) { Text("Save") }
+            TextButton(onClick = { onConfirm(name, selectedDate) }) { Text("Save") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
@@ -357,4 +607,5 @@ private fun ReadingStatus.displayName() = when (this) {
     ReadingStatus.READING -> "Reading"
     ReadingStatus.TO_READ -> "To Read"
     ReadingStatus.UNREAD -> "Unread"
+    ReadingStatus.DNF -> "DNF"
 }

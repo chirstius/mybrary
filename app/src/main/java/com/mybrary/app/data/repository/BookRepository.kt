@@ -15,28 +15,32 @@ import javax.inject.Singleton
 class BookRepository @Inject constructor(
     private val bookDao: BookDao,
 ) {
-    fun observeAll(): Flow<List<Book>> =
-        bookDao.observeAll().map { list -> list.map { it.toDomain() } }
+    fun observeAll(libraryId: String): Flow<List<Book>> =
+        bookDao.observeAll(libraryId).map { list -> list.map { it.toDomain() } }
 
     fun observeFiltered(
+        libraryId: String,
         query: String = "",
         status: ReadingStatus? = null,
         sortBy: String = "dateAdded",
+        genre: String? = null,
     ): Flow<List<Book>> =
         bookDao.observeFiltered(
+            libraryId = libraryId,
             query = query,
             status = status?.name ?: "",
             sortBy = sortBy,
+            genre = genre ?: "",
         ).map { list -> list.map { it.toDomain() } }
 
-    fun observeLoaned(): Flow<List<Book>> =
-        bookDao.observeLoaned().map { list -> list.map { it.toDomain() } }
+    fun observeLoaned(libraryId: String): Flow<List<Book>> =
+        bookDao.observeLoaned(libraryId).map { list -> list.map { it.toDomain() } }
 
     suspend fun getById(id: String): Book? =
         bookDao.getById(id)?.toDomain()
 
-    suspend fun getByIsbn(isbn: String): Book? =
-        bookDao.getByIsbn(isbn)?.toDomain()
+    suspend fun getByIsbn(isbn: String, libraryId: String): Book? =
+        bookDao.getByIsbn(isbn, libraryId)?.toDomain()
 
     suspend fun save(book: Book) {
         val updated = book.copy(dateModified = LocalDateTime.now(), pendingSync = true)
@@ -51,18 +55,27 @@ class BookRepository @Inject constructor(
         bookDao.deleteById(id)
     }
 
-    /** Replace all local books with what came from the sheet (full sync). */
-    suspend fun replaceAllFromSheet(books: List<Book>) {
-        bookDao.upsertAll(books.map { it.toEntity() })
+    /** Upsert books from the sheet and remove any local books not present in the sheet (authoritative pull). */
+    suspend fun replaceAllFromSheet(books: List<Book>, libraryId: String) {
+        val localPendingIds = bookDao.getPendingSync(libraryId).map { it.id }.toSet()
+        val toUpsert = books.filter { it.id !in localPendingIds }
+        bookDao.upsertAll(toUpsert.map { it.toEntity() })
+        // Remove books no longer in the sheet (e.g. deleted on another device or locally)
+        val sheetIds = books.map { it.id }
+        if (sheetIds.isEmpty()) {
+            bookDao.deleteAllNonPending(libraryId)
+        } else {
+            bookDao.deleteExceptIds(libraryId, sheetIds)
+        }
     }
 
-    suspend fun getPendingSync(): List<Book> =
-        bookDao.getPendingSync().map { it.toDomain() }
+    suspend fun getPendingSync(libraryId: String): List<Book> =
+        bookDao.getPendingSync(libraryId).map { it.toDomain() }
 
     suspend fun markSynced(id: String, sheetRowIndex: Int) {
         val entity = bookDao.getById(id) ?: return
         bookDao.upsert(entity.copy(pendingSync = false, sheetRowIndex = sheetRowIndex))
     }
 
-    suspend fun count(): Int = bookDao.count()
+    suspend fun count(libraryId: String): Int = bookDao.count(libraryId)
 }

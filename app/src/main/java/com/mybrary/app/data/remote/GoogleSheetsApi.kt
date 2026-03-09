@@ -3,10 +3,13 @@ package com.mybrary.app.data.remote
 import com.mybrary.app.data.remote.model.*
 import com.mybrary.app.domain.model.Book
 import com.mybrary.app.domain.model.ReadingStatus
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import retrofit2.Response
 import retrofit2.http.*
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.UUID
 
 interface GoogleSheetsService {
 
@@ -42,6 +45,14 @@ interface GoogleSheetsService {
         @Body body: SheetsBatchUpdateRequest,
     ): Response<Unit>
 
+    /** Add a new sheet tab to an existing spreadsheet. */
+    @POST("v4/spreadsheets/{spreadsheetId}:batchUpdate")
+    suspend fun addSheetTab(
+        @Path("spreadsheetId") spreadsheetId: String,
+        @Header("Authorization") auth: String,
+        @Body body: AddSheetTabRequest,
+    ): Response<Unit>
+
     @POST("v4/spreadsheets")
     suspend fun createSpreadsheet(
         @Header("Authorization") auth: String,
@@ -49,13 +60,26 @@ interface GoogleSheetsService {
     ): Response<CreateSpreadsheetResponse>
 }
 
-data class CreateSpreadsheetRequest(val properties: SpreadsheetProperties)
+data class CreateSpreadsheetRequest(
+    val properties: SpreadsheetProperties,
+    val sheets: List<SheetConfig> = listOf(
+        SheetConfig(SheetProperties("Books")),
+        SheetConfig(SheetProperties("Genres")),
+    ),
+)
 data class SpreadsheetProperties(val title: String)
+data class SheetProperties(val title: String)
+data class SheetConfig(val properties: SheetProperties)
 data class CreateSpreadsheetResponse(val spreadsheetId: String?, val spreadsheetUrl: String?)
+
+data class AddSheetTabRequest(val requests: List<AddSheetRequestItem>)
+data class AddSheetRequestItem(val addSheet: AddSheetBody)
+data class AddSheetBody(val properties: SheetProperties)
 
 // Convert a sheet row to a domain Book
 fun List<String>.toBook(rowIndex: Int): Book? {
-    if (size < SheetColumns.TOTAL) return null
+    // Allow rows with or without the Genre column (backward compat)
+    if (size < SheetColumns.TOTAL - 1) return null
     val id = getOrElse(SheetColumns.ID) { "" }.ifBlank { return null }
     return try {
         Book(
@@ -86,6 +110,7 @@ fun List<String>.toBook(rowIndex: Int): Book? {
             dateModified = getOrElse(SheetColumns.DATE_MODIFIED) { "" }.let {
                 runCatching { LocalDateTime.parse(it) }.getOrDefault(LocalDateTime.now())
             },
+            genre = getOrElse(SheetColumns.GENRE) { "" }.ifBlank { null },
             sheetRowIndex = rowIndex,
             pendingSync = false,
         )
@@ -114,6 +139,7 @@ fun Book.toSheetRow(): List<String?> = listOf(
     loanDueDate?.toString() ?: "",
     dateAdded.toString(),
     dateModified.toString(),
+    genre ?: "",
 )
 
 private fun String.splitTags() =

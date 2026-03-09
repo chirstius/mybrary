@@ -58,12 +58,13 @@ object SheetColumns {
     const val LOAN_DUE_DATE = 16
     const val DATE_ADDED = 17
     const val DATE_MODIFIED = 18
-    const val TOTAL = 19
+    const val GENRE = 19
+    const val TOTAL = 20
 
     val HEADER_ROW = listOf(
         "ID", "ISBN", "ISBN13", "Title", "Authors", "Publisher",
         "Published Year", "Pages", "Description", "Cover URL",
         "Status", "Reading Progress", "Notes", "Location", "Tags",
-        "Loaned To", "Loan Due Date", "Date Added", "Date Modified",
+        "Loaned To", "Loan Due Date", "Date Added", "Date Modified", "Genre",
     )
 }

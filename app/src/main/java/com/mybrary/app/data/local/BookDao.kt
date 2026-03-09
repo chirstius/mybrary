@@ -6,12 +6,13 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface BookDao {
 
-    @Query("SELECT * FROM books ORDER BY dateAdded DESC")
-    fun observeAll(): Flow<List<BookEntity>>
+    @Query("SELECT * FROM books WHERE libraryId = :libraryId ORDER BY dateAdded DESC")
+    fun observeAll(libraryId: String): Flow<List<BookEntity>>
 
     @Query("""
         SELECT * FROM books
-        WHERE (:query = '' OR title LIKE '%' || :query || '%'
+        WHERE libraryId = :libraryId
+        AND (:query = '' OR title LIKE '%' || :query || '%'
             OR authors LIKE '%' || :query || '%'
             OR isbn LIKE '%' || :query || '%'
             OR isbn13 LIKE '%' || :query || '%'
@@ -19,6 +20,7 @@ interface BookDao {
             OR tags LIKE '%' || :query || '%'
             OR location LIKE '%' || :query || '%')
         AND (:status = '' OR status = :status)
+        AND (:genre = '' OR genre = :genre)
         ORDER BY
             CASE :sortBy
                 WHEN 'title' THEN title
@@ -27,19 +29,21 @@ interface BookDao {
             END ASC
     """)
     fun observeFiltered(
+        libraryId: String,
         query: String,
         status: String,
         sortBy: String,
+        genre: String,
     ): Flow<List<BookEntity>>
 
     @Query("SELECT * FROM books WHERE id = :id")
     suspend fun getById(id: String): BookEntity?
 
-    @Query("SELECT * FROM books WHERE isbn = :isbn OR isbn13 = :isbn LIMIT 1")
-    suspend fun getByIsbn(isbn: String): BookEntity?
+    @Query("SELECT * FROM books WHERE (isbn = :isbn OR isbn13 = :isbn) AND libraryId = :libraryId LIMIT 1")
+    suspend fun getByIsbn(isbn: String, libraryId: String): BookEntity?
 
-    @Query("SELECT * FROM books WHERE pendingSync = 1")
-    suspend fun getPendingSync(): List<BookEntity>
+    @Query("SELECT * FROM books WHERE pendingSync = 1 AND libraryId = :libraryId")
+    suspend fun getPendingSync(libraryId: String): List<BookEntity>
 
     @Upsert
     suspend fun upsert(book: BookEntity)
@@ -56,9 +60,15 @@ interface BookDao {
     @Query("UPDATE books SET pendingSync = 0 WHERE id = :id")
     suspend fun markSynced(id: String)
 
-    @Query("SELECT COUNT(*) FROM books")
-    suspend fun count(): Int
+    @Query("DELETE FROM books WHERE libraryId = :libraryId AND pendingSync = 0 AND id NOT IN (:ids)")
+    suspend fun deleteExceptIds(libraryId: String, ids: List<String>)
 
-    @Query("SELECT * FROM books WHERE loanedTo IS NOT NULL AND loanedTo != ''")
-    fun observeLoaned(): Flow<List<BookEntity>>
+    @Query("DELETE FROM books WHERE libraryId = :libraryId AND pendingSync = 0")
+    suspend fun deleteAllNonPending(libraryId: String)
+
+    @Query("SELECT COUNT(*) FROM books WHERE libraryId = :libraryId")
+    suspend fun count(libraryId: String): Int
+
+    @Query("SELECT * FROM books WHERE loanedTo IS NOT NULL AND loanedTo != '' AND libraryId = :libraryId")
+    fun observeLoaned(libraryId: String): Flow<List<BookEntity>>
 }

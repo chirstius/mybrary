@@ -3,7 +3,7 @@ package com.mybrary.app.domain.model
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-enum class ReadingStatus { UNREAD, TO_READ, READING, READ }
+enum class ReadingStatus { UNREAD, TO_READ, READING, READ, DNF }
 
 data class Book(
     val id: String,
@@ -16,6 +16,7 @@ data class Book(
     val pages: Int? = null,
     val description: String? = null,
     val coverUrl: String? = null,
+    val genre: String? = null,
     val status: ReadingStatus = ReadingStatus.UNREAD,
     val readingProgress: Int = 0,      // 0–100 percent
     val notes: String = "",
@@ -27,4 +28,5 @@ data class Book(
     val dateModified: LocalDateTime = LocalDateTime.now(),
     val sheetRowIndex: Int? = null,    // row in Google Sheet; null until synced
     val pendingSync: Boolean = false,  // queued for upload
+    val libraryId: String = "default", // which library this book belongs to
 )

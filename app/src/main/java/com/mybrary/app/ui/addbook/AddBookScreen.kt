@@ -13,16 +13,23 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mybrary.app.domain.model.Book
 import com.mybrary.app.domain.model.ReadingStatus
+import com.mybrary.app.ui.components.GenreDropdown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddBookScreen(
+    prefillIsbn: String = "",
     prefillBook: Book? = null,
     onBack: () -> Unit,
     onSaved: (bookId: String) -> Unit,
     viewModel: AddBookViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val genres by viewModel.genres.collectAsState()
+
+    LaunchedEffect(prefillIsbn) {
+        viewModel.prefillIsbn(prefillIsbn)
+    }
 
     LaunchedEffect(prefillBook) {
         prefillBook?.let { viewModel.prefill(it) }
@@ -121,6 +128,13 @@ fun AddBookScreen(
                 leadingIcon = { Icon(Icons.Default.Image, null) },
             )
 
+            // Genre
+            GenreDropdown(
+                value = uiState.genre,
+                onValueChange = { viewModel.update { copy(genre = it) } },
+                genres = genres,
+            )
+
             // Status selector
             Text("Status", style = MaterialTheme.typography.labelLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -130,6 +144,22 @@ fun AddBookScreen(
                         onClick = { viewModel.update { copy(status = status) } },
                         label = { Text(status.name.replace("_", " ").lowercase()
                             .replaceFirstChar { it.uppercaseChar() }) },
+                    )
+                }
+            }
+
+            if (uiState.status == ReadingStatus.READING) {
+                Column {
+                    Text(
+                        "Reading Progress: ${uiState.readingProgress}%",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    )
+                    Slider(
+                        value = uiState.readingProgress.toFloat(),
+                        onValueChange = { viewModel.update { copy(readingProgress = it.toInt()) } },
+                        valueRange = 0f..100f,
+                        steps = 19,
                     )
                 }
             }

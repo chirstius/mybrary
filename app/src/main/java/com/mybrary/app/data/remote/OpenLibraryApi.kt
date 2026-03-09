@@ -22,7 +22,7 @@ interface OpenLibraryService {
     @GET("search.json")
     suspend fun searchByIsbn(
         @Query("isbn") isbn: String,
-        @Query("fields") fields: String = "title,author_name,publisher,first_publish_year,number_of_pages_median,isbn,cover_i",
+        @Query("fields") fields: String = "title,author_name,publisher,first_publish_year,number_of_pages_median,isbn,cover_i,subject",
         @Query("limit") limit: Int = 1,
     ): Response<OpenLibrarySearchResponse>
 }
@@ -49,6 +49,11 @@ fun buildBookFromOpenLibrary(isbn: String, json: JsonObject, gson: Gson): Book? 
 
     val year = publishDate?.let { Regex("""\d{4}""").find(it)?.value?.toIntOrNull() }
 
+    val subjectTags = obj.getAsJsonArray("subjects")
+        ?.mapNotNull { runCatching { it.asJsonObject?.get("name")?.asString }.getOrNull() }
+        ?.take(5)
+        ?: emptyList()
+
     return Book(
         id = UUID.randomUUID().toString(),
         isbn = isbn,
@@ -59,6 +64,7 @@ fun buildBookFromOpenLibrary(isbn: String, json: JsonObject, gson: Gson): Book? 
         publishedYear = year,
         pages = pages,
         coverUrl = coverUrl,
+        tags = subjectTags,
         status = ReadingStatus.UNREAD,
         dateAdded = LocalDateTime.now(),
         dateModified = LocalDateTime.now(),
@@ -86,6 +92,7 @@ fun buildBookFromSearchDoc(
         publishedYear = doc.firstPublishYear,
         pages = doc.numberOfPagesMedian,
         coverUrl = coverUrl,
+        tags = doc.subject?.take(5) ?: emptyList(),
         status = ReadingStatus.UNREAD,
         dateAdded = LocalDateTime.now(),
         dateModified = LocalDateTime.now(),

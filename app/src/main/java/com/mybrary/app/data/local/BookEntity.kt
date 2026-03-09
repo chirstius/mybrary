@@ -19,6 +19,7 @@ data class BookEntity(
     val pages: Int?,
     val description: String?,
     val coverUrl: String?,
+    val genre: String?,
     val status: String,              // ReadingStatus name
     val readingProgress: Int,
     val notes: String,
@@ -30,6 +31,7 @@ data class BookEntity(
     val dateModified: String,
     val sheetRowIndex: Int?,
     val pendingSync: Boolean,
+    val libraryId: String,
 )
 
 fun BookEntity.toDomain(): Book = Book(
@@ -43,6 +45,7 @@ fun BookEntity.toDomain(): Book = Book(
     pages = pages,
     description = description,
     coverUrl = coverUrl,
+    genre = genre,
     status = ReadingStatus.valueOf(status),
     readingProgress = readingProgress,
     notes = notes,
@@ -54,6 +57,7 @@ fun BookEntity.toDomain(): Book = Book(
     dateModified = LocalDateTime.parse(dateModified),
     sheetRowIndex = sheetRowIndex,
     pendingSync = pendingSync,
+    libraryId = libraryId,
 )
 
 fun Book.toEntity(): BookEntity = BookEntity(
@@ -67,6 +71,7 @@ fun Book.toEntity(): BookEntity = BookEntity(
     pages = pages,
     description = description,
     coverUrl = coverUrl,
+    genre = genre,
     status = status.name,
     readingProgress = readingProgress,
     notes = notes,
@@ -78,6 +83,7 @@ fun Book.toEntity(): BookEntity = BookEntity(
     dateModified = dateModified.toString(),
     sheetRowIndex = sheetRowIndex,
     pendingSync = pendingSync,
+    libraryId = libraryId,
 )
 
 private fun List<String>.toJsonString(): String =
