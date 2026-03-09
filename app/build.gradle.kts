@@ -36,6 +36,18 @@ android {
         buildConfigField("String", "GOOGLE_BOOKS_API_KEY", "\"$booksApiKey\"")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            val ks = file("${System.getProperty("user.home")}/.android/debug.keystore")
+            if (ks.exists()) {
+                storeFile = ks
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
