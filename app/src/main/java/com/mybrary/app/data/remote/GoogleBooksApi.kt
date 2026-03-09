@@ -1,6 +1,5 @@
 package com.mybrary.app.data.remote
 
-import com.google.gson.annotations.SerializedName
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -10,7 +9,7 @@ interface GoogleBooksService {
     suspend fun searchByIsbn(
         @Query("q") query: String,
         @Query("key") apiKey: String,
-        @Query("fields") fields: String = "items/volumeInfo/categories",
+        @Query("fields") fields: String = "items/volumeInfo(categories,description,imageLinks,pageCount,publisher,publishedDate)",
         @Query("maxResults") maxResults: Int = 1,
     ): Response<GoogleBooksResponse>
 }
@@ -25,10 +24,14 @@ data class GoogleBooksItem(
 
 data class GoogleBooksVolumeInfo(
     val categories: List<String>?,
+    val description: String?,
+    val imageLinks: GoogleBooksImageLinks?,
+    val pageCount: Int?,
+    val publisher: String?,
+    val publishedDate: String?,
 )
 
-/** Extract the primary genre from a Google Books response. */
-fun GoogleBooksResponse?.extractGenre(): String? =
-    this?.items?.firstOrNull()?.volumeInfo?.categories?.firstOrNull()
-        ?.split("/")?.firstOrNull()?.trim()
-        ?.takeIf { it.isNotBlank() }
+data class GoogleBooksImageLinks(
+    val thumbnail: String?,
+    val smallThumbnail: String?,
+)
