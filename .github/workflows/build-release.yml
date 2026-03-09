@@ -48,6 +48,6 @@ jobs:
             Latest debug build from `master`.
 
             Install: download `mybrary.apk` below and sideload on your Android device.
-          prerelease: true
+          prerelease: false
           make_latest: true
           files: app/build/outputs/apk/debug/mybrary.apk
