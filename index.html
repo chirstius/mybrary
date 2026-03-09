@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mybrary — Your Personal Book Library</title>
+    <style>
+        :root {
+            --primary: #4A6741;
+            --primary-light: #6B9162;
+            --surface: #F8F5F0;
+            --text: #1C1B1A;
+            --text-muted: #6B6560;
+            --card: #FFFFFF;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--surface);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        header {
+            background: var(--primary);
+            color: white;
+            padding: 48px 24px 56px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        header p {
+            font-size: 1.15rem;
+            margin-top: 12px;
+            opacity: 0.85;
+        }
+
+        .badge {
+            display: inline-block;
+            margin-top: 28px;
+        }
+
+        .badge img {
+            height: 52px;
+        }
+
+        main {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 48px 24px 80px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 48px;
+        }
+
+        .feature-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+
+        .feature-card .icon {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+
+        .feature-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .feature-card p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .deep-link-box {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 48px;
+        }
+
+        .deep-link-box p {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            font-size: 0.95rem;
+        }
+
+        .open-btn {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: background 0.15s;
+        }
+
+        .open-btn:hover { background: var(--primary-light); }
+
+        .isbn-info {
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        footer {
+            text-align: center;
+            padding: 32px 24px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            border-top: 1px solid #E8E3DD;
+        }
+
+        footer a { color: var(--primary); text-decoration: none; }
+
+        /* Hide deep-link section when no ISBN in URL */
+        .deep-link-section { display: none; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>📚 mybrary</h1>
+    <p>Your personal book library, always in your pocket.</p>
+    <!--
+    <div class="badge">
+        <a href="https://play.google.com/store/apps/details?id=com.mybrary.app">
+            <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play">
+        </a>
+    </div>
+    -->
+</header>
+
+<main>
+
+    <div class="deep-link-section" id="bookSection">
+        <h2 class="section-title">Open in Mybrary</h2>
+        <div class="deep-link-box">
+            <p>Someone shared a book with you. Open it in the Mybrary app to add it to your library.</p>
+            <a class="open-btn" id="openBtn" href="#">Open in Mybrary</a>
+            <p class="isbn-info" id="isbnInfo"></p>
+        </div>
+    </div>
+
+    <h2 class="section-title">Features</h2>
+    <div class="features">
+        <div class="feature-card">
+            <div class="icon">📷</div>
+            <h3>Scan to Add</h3>
+            <p>Point your camera at any book's barcode and Mybrary fills in the details automatically.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">📊</div>
+            <h3>Google Sheets Sync</h3>
+            <p>Your library lives in a Google Sheet you own — export, share, or back it up any time.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">📤</div>
+            <h3>Share Books</h3>
+            <p>Send a book card to friends. They can tap the link to add it to their own Mybrary.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">🏷️</div>
+            <h3>Track Everything</h3>
+            <p>Reading status, progress, notes, location, tags, loans — all in one place.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">📚</div>
+            <h3>Multiple Libraries</h3>
+            <p>Separate shelves for home, office, kids' books — switch between them instantly.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon">🔔</div>
+            <h3>Loan Tracking</h3>
+            <p>Record who borrowed a book and when it's due. Get overdue alerts at a glance.</p>
+        </div>
+    </div>
+
+</main>
+
+<footer>
+    <p>Mybrary &mdash; <a href="https://github.com/chirstius/mybrary">Open Source on GitHub</a></p>
+</footer>
+
+<script>
+    // Handle /book?isbn=... deep links
+    const params = new URLSearchParams(window.location.search);
+    const isbn = params.get("isbn");
+    const path = window.location.pathname;
+
+    if (isbn && path.startsWith("/book")) {
+        const section = document.getElementById("bookSection");
+        const btn = document.getElementById("openBtn");
+        const info = document.getElementById("isbnInfo");
+
+        section.style.display = "block";
+        btn.href = "mybrary://book?isbn=" + encodeURIComponent(isbn);
+        info.textContent = "ISBN: " + isbn;
+
+        // On Android, attempt the deep link immediately; fall back to store page
+        const isAndroid = /android/i.test(navigator.userAgent);
+        if (isAndroid) {
+            // Try to open the app; if it fails after 1.5s the user likely doesn't have it
+            window.location.href = "mybrary://book?isbn=" + encodeURIComponent(isbn);
+        }
+    }
+</script>
+
+</body>
+</html>
