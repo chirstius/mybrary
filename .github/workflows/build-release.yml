@@ -29,8 +29,9 @@ jobs:
           KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE }}
         run: |
           mkdir -p ~/.android
-          printenv KEYSTORE_B64 | base64 -d > ~/.android/debug.keystore
-          keytool -list -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android 2>&1 | grep SHA1 || echo "WARNING: keystore verification failed"
+          echo -n "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          echo "Keystore size: $(wc -c < ~/.android/debug.keystore)"
+          keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android 2>&1 | grep -E "SHA1|SHA256" || echo "WARNING: keystore verification failed"
         shell: bash
 
       - name: Write local.properties
