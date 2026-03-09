@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,9 +27,14 @@ fun AddBookScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val genres by viewModel.genres.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
+    // Set ISBN from deep link / caller, then auto-lookup if it came from a deep link
     LaunchedEffect(prefillIsbn) {
-        viewModel.prefillIsbn(prefillIsbn)
+        if (prefillIsbn.isNotBlank()) {
+            viewModel.prefillIsbn(prefillIsbn)
+            viewModel.lookupIsbn()
+        }
     }
 
     LaunchedEffect(prefillBook) {
@@ -37,6 +43,13 @@ fun AddBookScreen(
 
     LaunchedEffect(uiState.savedId) {
         uiState.savedId?.let { onSaved(it) }
+    }
+
+    LaunchedEffect(uiState.lookupError) {
+        uiState.lookupError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearLookupError()
+        }
     }
 
     Scaffold(
@@ -60,8 +73,10 @@ fun AddBookScreen(
                 text = { Text("Add to Library") },
                 icon = { Icon(Icons.Default.LibraryAdd, null) },
                 onClick = { viewModel.save() },
+                expanded = !uiState.isLookingUp,
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -72,14 +87,39 @@ fun AddBookScreen(
         ) {
             Spacer(Modifier.height(8.dp))
 
-            OutlinedTextField(
-                value = uiState.isbn,
-                onValueChange = { viewModel.update { copy(isbn = it) } },
-                label = { Text("ISBN") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.QrCode, null) },
-            )
+            // ISBN field with inline Lookup button
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedTextField(
+                    value = uiState.isbn,
+                    onValueChange = { viewModel.update { copy(isbn = it, lookupError = null) } },
+                    label = { Text("ISBN") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    leadingIcon = { Icon(Icons.Default.QrCode, null) },
+                    enabled = !uiState.isLookingUp,
+                )
+                FilledTonalButton(
+                    onClick = { viewModel.lookupIsbn() },
+                    enabled = uiState.isbn.isNotBlank() && !uiState.isLookingUp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+                ) {
+                    if (uiState.isLookingUp) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Search, contentDescription = "Look up ISBN", modifier = Modifier.size(20.dp))
+                    }
+                    Spacer(Modifier.width(4.dp))
+                    Text("Lookup")
+                }
+            }
+
+            if (uiState.isLookingUp) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+
             OutlinedTextField(
                 value = uiState.title,
                 onValueChange = { viewModel.update { copy(title = it) } },

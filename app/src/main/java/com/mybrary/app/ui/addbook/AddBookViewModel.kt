@@ -2,6 +2,7 @@ package com.mybrary.app.ui.addbook
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mybrary.app.data.repository.BookLookupRepository
 import com.mybrary.app.data.repository.BookRepository
 import com.mybrary.app.data.repository.GenreRepository
 import com.mybrary.app.data.sync.LibraryManager
@@ -31,12 +32,15 @@ data class AddBookUiState(
     val tags: String = "",
     val readingProgress: Int = 0,
     val isSaving: Boolean = false,
+    val isLookingUp: Boolean = false,
+    val lookupError: String? = null,
     val savedId: String? = null,
 )
 
 @HiltViewModel
 class AddBookViewModel @Inject constructor(
     private val bookRepository: BookRepository,
+    private val lookupRepository: BookLookupRepository,
     private val genreRepository: GenreRepository,
     private val syncService: SheetsSyncService,
     private val libraryManager: LibraryManager,
@@ -76,8 +80,34 @@ class AddBookViewModel @Inject constructor(
         }
     }
 
+    /** Look up the current ISBN and populate all fields, as if it were scanned. */
+    fun lookupIsbn() {
+        val isbn = _uiState.value.isbn.trim()
+        if (isbn.isBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLookingUp = true, lookupError = null) }
+            lookupRepository.lookupByIsbn(isbn).fold(
+                onSuccess = { book ->
+                    if (book != null) {
+                        prefill(book)
+                        _uiState.update { it.copy(isLookingUp = false) }
+                    } else {
+                        _uiState.update { it.copy(isLookingUp = false, lookupError = "Book not found for ISBN $isbn") }
+                    }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isLookingUp = false, lookupError = e.message ?: "Lookup failed") }
+                },
+            )
+        }
+    }
+
     fun update(transform: AddBookUiState.() -> AddBookUiState) {
         _uiState.update { it.transform() }
+    }
+
+    fun clearLookupError() {
+        _uiState.update { it.copy(lookupError = null) }
     }
 
     fun save() {
