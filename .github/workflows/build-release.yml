@@ -23,6 +23,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Restore debug keystore
+        run: |
+          mkdir -p ~/.android
+          echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 -d > ~/.android/debug.keystore
+        shell: bash
+
       - name: Write local.properties
         run: |
           echo "google_books_api_key=${{ secrets.GOOGLE_BOOKS_API_KEY }}" > local.properties
