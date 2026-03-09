@@ -43,6 +43,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun Intent.extractShareIsbn(): String =
-        data?.takeIf { it.scheme == "mybrary" && it.host == "book" }
-            ?.getQueryParameter("isbn").orEmpty()
+        data?.let { uri ->
+            when {
+                // mybrary://book?isbn=...
+                uri.scheme == "mybrary" && uri.host == "book" -> uri.getQueryParameter("isbn")
+                // https://mybrary.online/book?isbn=...
+                uri.scheme == "https" && uri.host == "mybrary.online" && uri.path?.startsWith("/book") == true -> uri.getQueryParameter("isbn")
+                else -> null
+            }
+        }.orEmpty()
 }

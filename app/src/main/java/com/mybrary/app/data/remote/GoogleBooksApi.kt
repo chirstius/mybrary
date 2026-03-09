@@ -9,6 +9,7 @@ interface GoogleBooksService {
     @GET("volumes")
     suspend fun searchByIsbn(
         @Query("q") query: String,
+        @Query("key") apiKey: String,
         @Query("fields") fields: String = "items/volumeInfo/categories",
         @Query("maxResults") maxResults: Int = 1,
     ): Response<GoogleBooksResponse>

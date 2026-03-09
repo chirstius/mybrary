@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.mybrary.app",
+      "sha256_cert_fingerprints": [
+        "A4:4D:77:9C:2C:1B:B4:9C:10:26:16:DC:FA:75:22:0F:BD:AE:F4:AD:25:C2:B9:4D:70:7B:73:8C:09:9F:DE:3D"
+      ]
+    }
+  }
+]

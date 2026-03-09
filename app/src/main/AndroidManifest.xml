@@ -42,12 +42,19 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Phase 2: mybrary://book?isbn=... deep links -->
+            <!-- mybrary://book?isbn=... fallback deep links -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="mybrary" android:host="book" />
+            </intent-filter>
+            <!-- App Links: https://mybrary.online/book?isbn=... -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="mybrary.online" android:pathPrefix="/book" />
             </intent-filter>
         </activity>
 

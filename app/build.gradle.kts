@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -24,6 +26,14 @@ android {
         // Open Library API base URL
         buildConfigField("String", "OPEN_LIBRARY_BASE_URL", "\"https://openlibrary.org/\"")
         buildConfigField("String", "SHEETS_API_BASE_URL", "\"https://sheets.googleapis.com/\"")
+        // Google Books API key (stored in local.properties, never committed)
+        val booksApiKey: String = run {
+            val props = Properties()
+            val file = rootProject.file("local.properties")
+            if (file.exists()) file.reader().use { props.load(it) }
+            props.getProperty("google_books_api_key", "")
+        }
+        buildConfigField("String", "GOOGLE_BOOKS_API_KEY", "\"$booksApiKey\"")
     }
 
     buildTypes {

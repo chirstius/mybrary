@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.mybrary.app.domain.model.Book
 import com.mybrary.app.domain.model.ReadingStatus
+import java.time.LocalDate
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -104,9 +105,10 @@ fun BookCard(
                         }
                     }
                     if (!book.loanedTo.isNullOrBlank()) {
+                        val isOverdue = book.loanDueDate != null && LocalDate.now().isAfter(book.loanDueDate)
                         Icon(
-                            imageVector = Icons.Default.SwapHoriz,
-                            contentDescription = "Loaned",
+                            imageVector = if (isOverdue) Icons.Default.Warning else Icons.Default.SwapHoriz,
+                            contentDescription = if (isOverdue) "Overdue" else "Loaned",
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.error,
                         )

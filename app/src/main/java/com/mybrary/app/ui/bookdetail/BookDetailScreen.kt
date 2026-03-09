@@ -179,9 +179,9 @@ fun BookDetailScreen(
                                 if (snippet != null) { appendLine(); appendLine(snippet) }
                                 if (isbnForLink.isNotBlank()) {
                                     appendLine()
-                                    appendLine("🔗 https://openlibrary.org/isbn/$isbnForLink")
+                                    appendLine("🔗 https://mybrary.online/book?isbn=$isbnForLink")
                                     appendLine()
-                                    append("mybrary://book?isbn=$isbnForLink")
+                                    append("https://openlibrary.org/isbn/$isbnForLink")
                                 }
                             }
                             val intent = Intent(Intent.ACTION_SEND).apply {
@@ -480,6 +480,9 @@ private fun LoanSection(
         Text("Loan", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
         if (!loanedTo.isNullOrBlank()) {
+            val today = LocalDate.now()
+            val daysOverdue = if (dueDate != null && today.isAfter(dueDate))
+                (today.toEpochDay() - dueDate.toEpochDay()).toInt() else 0
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                 Row(
                     modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -489,8 +492,18 @@ private fun LoanSection(
                     Column {
                         Text("Loaned to: $loanedTo", fontWeight = FontWeight.Medium)
                         dueDate?.let {
-                            Text("Due: ${it.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}",
-                                style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                "Due: ${it.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        if (daysOverdue > 0) {
+                            Text(
+                                "Overdue by $daysOverdue day${if (daysOverdue != 1) "s" else ""}",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.error,
+                            )
                         }
                     }
                     TextButton(onClick = onReturnClick) { Text("Returned") }
@@ -554,9 +567,14 @@ private fun LoanDialog(
     }
 
     if (showDatePicker) {
+        val todayMillis = java.util.concurrent.TimeUnit.DAYS.toMillis(LocalDate.now().toEpochDay())
         val datePickerState = rememberDatePickerState(
             initialSelectedDateMillis = selectedDate
-                ?.let { java.util.concurrent.TimeUnit.DAYS.toMillis(it.toEpochDay()) }
+                ?.let { java.util.concurrent.TimeUnit.DAYS.toMillis(it.toEpochDay()) },
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis >= todayMillis
+                override fun isSelectableYear(year: Int) = year >= LocalDate.now().year
+            },
         )
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
