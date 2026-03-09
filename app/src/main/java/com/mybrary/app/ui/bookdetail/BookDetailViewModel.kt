@@ -90,6 +90,9 @@ class BookDetailViewModel @Inject constructor(
 
     fun delete(onDeleted: () -> Unit) {
         viewModelScope.launch {
+            val book = _uiState.value.book
+            // Remove from sheet first so a subsequent pull doesn't restore it
+            if (book != null) syncService.deleteBookFromSheet(book)
             bookRepository.deleteById(bookId)
             onDeleted()
         }
