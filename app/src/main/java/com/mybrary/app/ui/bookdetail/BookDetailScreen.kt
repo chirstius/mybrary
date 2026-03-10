@@ -311,6 +311,17 @@ fun BookDetailScreen(
                     )
                 }
 
+                // Description
+                OutlinedTextField(
+                    value = book.description ?: "",
+                    onValueChange = viewModel::updateDescription,
+                    label = { Text("Description") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 10,
+                    leadingIcon = { Icon(Icons.Default.Description, null) },
+                )
+
                 // Notes
                 OutlinedTextField(
                     value = book.notes,
@@ -443,14 +454,6 @@ private fun BookHeader(book: Book, onCoverTap: () -> Unit, onEditCoverTap: () ->
                 ),
             )
         }
-    }
-    book.description?.let {
-        Text(
-            text = it,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
     }
 }
 

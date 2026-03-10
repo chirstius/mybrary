@@ -50,6 +50,7 @@ class BookDetailViewModel @Inject constructor(
         }
     }
 
+    fun updateDescription(desc: String) = updateBook { copy(description = desc.ifBlank { null }) }
     fun updateGenre(genre: String) = updateBook { copy(genre = genre.ifBlank { null }) }
     fun updateStatus(status: ReadingStatus) = updateBook { copy(status = status) }
     fun updateProgress(progress: Int) = updateBook { copy(readingProgress = progress) }
