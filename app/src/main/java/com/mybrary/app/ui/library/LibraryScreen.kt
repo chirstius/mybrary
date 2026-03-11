@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -213,10 +214,16 @@ fun LibraryScreen(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
+            val listState = rememberLazyListState()
+            // Scroll to top when sort option or direction changes
+            LaunchedEffect(uiState.sortOption, uiState.sortAscending) {
+                listState.scrollToItem(0)
+            }
             if (uiState.books.isEmpty()) {
                 EmptyState(modifier = Modifier.weight(1f))
             } else {
                 LazyColumn(
+                    state = listState,
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
