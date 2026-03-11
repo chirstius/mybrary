@@ -19,6 +19,8 @@ import com.mybrary.app.data.remote.toSheetRow
 import com.mybrary.app.data.repository.BookRepository
 import com.mybrary.app.data.repository.GenreRepository
 import com.mybrary.app.domain.model.Book
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,6 +39,7 @@ class SheetsSyncService @Inject constructor(
 ) {
     private val sheetRange = "Books"
     private val genreRange = "Genres"
+    private val pushMutex = Mutex()
 
     private suspend fun getSpreadsheetId(): String? = spreadsheetPreferences.getSpreadsheetId()
     private suspend fun getActiveLibraryId(): String = spreadsheetPreferences.getActiveLibraryId()
@@ -170,12 +173,12 @@ class SheetsSyncService @Inject constructor(
      * Push all local books marked pendingSync=true up to the sheet.
      * Uses append for new books (no sheetRowIndex) and update for existing ones.
      */
-    suspend fun pushPendingToSheet(): SyncResult {
+    suspend fun pushPendingToSheet(): SyncResult = pushMutex.withLock {
         val spreadsheetId = getSpreadsheetId()
-            ?: return SyncResult.Error("No Google Sheet configured.")
+            ?: return@withLock SyncResult.Error("No Google Sheet configured.")
         val libraryId = getActiveLibraryId()
         val pending = bookRepository.getPendingSync(libraryId)
-        if (pending.isEmpty()) return SyncResult.Success
+        if (pending.isEmpty()) return@withLock SyncResult.Success
 
         for (book in pending) {
             val result = if (book.sheetRowIndex == null) {
@@ -183,29 +186,33 @@ class SheetsSyncService @Inject constructor(
             } else {
                 updateBook(book, spreadsheetId)
             }
-            if (result is SyncResult.Error) return result
+            if (result is SyncResult.Error) return@withLock result
         }
-        return SyncResult.Success
+        SyncResult.Success
     }
 
     private suspend fun appendBook(book: Book, spreadsheetId: String): SyncResult {
+        val appendRange = "Books!A:T"
         val body = SheetsValueRange(
-            range = sheetRange,
+            range = appendRange,
             values = listOf(book.toSheetRow()),
         )
         val response = runCatching {
-            withToken { auth -> sheetsService.appendValues(spreadsheetId, sheetRange, auth = auth, body = body) }
+            withToken { auth -> sheetsService.appendValues(spreadsheetId, appendRange, auth = auth, body = body) }
         }.getOrElse { return SyncResult.Error(it.message ?: "Network error") }
 
         if (!response.isSuccessful) {
             return SyncResult.Error("Append failed: HTTP ${response.code()}")
         }
 
-        // Parse the updated range to extract the row number (e.g. "Books!A42:S42" → 42)
+        // Parse the updated range to extract the row number (e.g. "Books!A42:T42" → 42)
         val updatedRange = response.body()?.updates?.updatedRange ?: ""
+        Log.d("Sync", "Append updatedRange='$updatedRange' for book '${book.title}'")
         val rowIndex = Regex("""(\d+)$""").find(updatedRange)?.value?.toIntOrNull()
         if (rowIndex != null) {
             bookRepository.markSynced(book.id, rowIndex)
+        } else {
+            Log.w("Sync", "Could not parse row index from updatedRange='$updatedRange'")
         }
         return SyncResult.Success
     }

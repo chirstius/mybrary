@@ -43,7 +43,14 @@ class BookRepository @Inject constructor(
         bookDao.getByIsbn(isbn, libraryId)?.toDomain()
 
     suspend fun save(book: Book) {
-        val updated = book.copy(dateModified = LocalDateTime.now(), pendingSync = true)
+        // Preserve sheetRowIndex from DB in case it was set by a concurrent sync
+        val existing = bookDao.getById(book.id)
+        val rowIndex = existing?.sheetRowIndex ?: book.sheetRowIndex
+        val updated = book.copy(
+            dateModified = LocalDateTime.now(),
+            pendingSync = true,
+            sheetRowIndex = rowIndex,
+        )
         bookDao.upsert(updated.toEntity())
     }
 
