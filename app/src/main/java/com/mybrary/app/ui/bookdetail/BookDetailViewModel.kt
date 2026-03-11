@@ -20,10 +20,13 @@ import javax.inject.Inject
 
 data class BookDetailUiState(
     val book: Book? = null,
+    val originalBook: Book? = null,
     val isLoading: Boolean = true,
     val isSaved: Boolean = false,
     val error: String? = null,
-)
+) {
+    val hasChanges: Boolean get() = book != null && originalBook != null && book != originalBook
+}
 
 @HiltViewModel
 class BookDetailViewModel @Inject constructor(
@@ -46,7 +49,7 @@ class BookDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val book = bookRepository.getById(bookId)
-            _uiState.update { it.copy(book = book, isLoading = false) }
+            _uiState.update { it.copy(book = book, originalBook = book, isLoading = false) }
         }
     }
 

@@ -210,11 +210,13 @@ fun BookDetailScreen(
             )
         },
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                text = { Text("Save") },
-                icon = { Icon(Icons.Default.Save, null) },
-                onClick = { viewModel.save() },
-            )
+            if (uiState.hasChanges) {
+                ExtendedFloatingActionButton(
+                    text = { Text("Save") },
+                    icon = { Icon(Icons.Default.Save, null) },
+                    onClick = { viewModel.save() },
+                )
+            }
         },
     ) { innerPadding ->
         val book = uiState.book

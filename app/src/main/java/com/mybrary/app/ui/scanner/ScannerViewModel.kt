@@ -24,8 +24,8 @@ sealed class ScanUiState {
     data class BookFound(val book: Book, val alreadyInLibrary: Boolean) : ScanUiState()
     data class BookNotFound(val isbn: String) : ScanUiState()
     data class Error(val message: String) : ScanUiState()
-    /** Book was auto-added (auto-add enabled); navigate away. */
-    data class Added(val bookId: String) : ScanUiState()
+    /** Book was added to library; show confirmation dialog. */
+    data class Added(val bookId: String, val bookTitle: String) : ScanUiState()
 }
 
 @HiltViewModel
@@ -72,7 +72,7 @@ class ScannerViewModel @Inject constructor(
                     if (book != null) {
                         if (autoAddEnabled.value) {
                             saveBookWithGenre(book)
-                            _uiState.value = ScanUiState.Added(book.id)
+                            _uiState.value = ScanUiState.Added(book.id, book.title)
                         } else {
                             _uiState.value = ScanUiState.BookFound(book, alreadyInLibrary = false)
                         }
@@ -90,7 +90,7 @@ class ScannerViewModel @Inject constructor(
     fun addToLibrary(book: Book) {
         viewModelScope.launch {
             saveBookWithGenre(book)
-            _uiState.value = ScanUiState.Added(book.id)
+            _uiState.value = ScanUiState.Added(book.id, book.title)
         }
     }
 

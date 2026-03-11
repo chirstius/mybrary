@@ -107,11 +107,30 @@ fun ScannerScreen(
         cameraLauncher.launch(uri)
     }
 
-    // Navigate when auto-add completes
+    // Show confirmation dialog when book is added
     if (uiState is ScanUiState.Added) {
-        LaunchedEffect((uiState as ScanUiState.Added).bookId) {
-            onBookAdded((uiState as ScanUiState.Added).bookId)
-        }
+        val addedBookId = (uiState as ScanUiState.Added).bookId
+        val addedBookTitle = (uiState as ScanUiState.Added).bookTitle
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Added to Library") },
+            text = { Text("\"$addedBookTitle\" has been added to your library.") },
+            confirmButton = {
+                TextButton(onClick = { onBookAdded(addedBookId) }) {
+                    Text("View Details")
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = { viewModel.reset() }) {
+                        Text("Scan Another")
+                    }
+                    TextButton(onClick = { onBack() }) {
+                        Text("Library")
+                    }
+                }
+            },
+        )
     }
 
     LaunchedEffect(Unit) {
