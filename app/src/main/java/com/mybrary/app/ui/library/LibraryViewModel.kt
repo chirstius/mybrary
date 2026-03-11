@@ -30,6 +30,7 @@ private data class FilterParams(
     val query: String,
     val status: ReadingStatus?,
     val sort: SortOption,
+    val sortAscending: Boolean,
     val genre: String?,
     val libraryId: String,
 )
@@ -39,6 +40,7 @@ data class LibraryUiState(
     val searchQuery: String = "",
     val statusFilter: ReadingStatus? = null,
     val sortOption: SortOption = SortOption.DATE_ADDED,
+    val sortAscending: Boolean = true,
     val genreFilter: String? = null,
     val availableGenres: List<String> = emptyList(),
     val isSyncing: Boolean = false,
@@ -91,6 +93,7 @@ class LibraryViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     private val _statusFilter = MutableStateFlow<ReadingStatus?>(null)
     private val _sortOption = MutableStateFlow(SortOption.DATE_ADDED)
+    private val _sortAscending = MutableStateFlow(true)
     private val _genreFilter = MutableStateFlow<String?>(null)
     private val _isSyncing = MutableStateFlow(false)
     private val _syncMessage = MutableStateFlow<String?>(null)
@@ -98,11 +101,22 @@ class LibraryViewModel @Inject constructor(
     private val _isCreatingLibrary = MutableStateFlow(false)
     private val _createLibraryError = MutableStateFlow<String?>(null)
 
+    init {
+        // Restore persisted sort preferences
+        viewModelScope.launch {
+            val savedSort = runCatching { SortOption.valueOf(prefs.sortOption.first()) }
+                .getOrDefault(SortOption.DATE_ADDED)
+            _sortOption.value = savedSort
+            _sortAscending.value = prefs.sortAscending.first()
+        }
+    }
+
     // Filter dimensions + active library ID in one object
     private val filterParams: Flow<FilterParams> = combine(
-        _searchQuery, _statusFilter, _sortOption, _genreFilter, libraryManager.activeLibraryId,
-    ) { query, status, sort, genre, libId ->
-        FilterParams(query, status, sort, genre, libId)
+        _searchQuery, _statusFilter, _sortOption, _sortAscending,
+        combine(_genreFilter, libraryManager.activeLibraryId) { g, l -> g to l },
+    ) { query, status, sort, asc, (genre, libId) ->
+        FilterParams(query, status, sort, asc, genre, libId)
     }
 
     // Core book + filter state (reacts to library switches automatically)
@@ -128,6 +142,7 @@ class LibraryViewModel @Inject constructor(
                 SortOption.AUTHOR -> "author"
                 SortOption.DATE_ADDED -> "dateAdded"
             },
+            sortAsc = filters.sortAscending,
             genre = filters.genre,
         ).map { books ->
             LibraryUiState(
@@ -135,6 +150,7 @@ class LibraryViewModel @Inject constructor(
                 searchQuery = filters.query,
                 statusFilter = filters.status,
                 sortOption = filters.sort,
+                sortAscending = filters.sortAscending,
                 genreFilter = filters.genre,
                 availableGenres = genres,
                 isSyncing = syncing,
@@ -167,7 +183,18 @@ class LibraryViewModel @Inject constructor(
 
     fun setSearchQuery(query: String) { _searchQuery.value = query }
     fun setStatusFilter(status: ReadingStatus?) { _statusFilter.value = status }
-    fun setSortOption(sort: SortOption) { _sortOption.value = sort }
+    fun setSortOption(sort: SortOption) {
+        if (_sortOption.value == sort) {
+            _sortAscending.value = !_sortAscending.value
+        } else {
+            _sortOption.value = sort
+            _sortAscending.value = true
+        }
+        viewModelScope.launch {
+            prefs.setSortOption(_sortOption.value.name)
+            prefs.setSortAscending(_sortAscending.value)
+        }
+    }
     fun setGenreFilter(genre: String?) { _genreFilter.value = genre }
     fun clearSyncMessage() { _syncMessage.value = null }
 

@@ -123,11 +123,18 @@ fun LibraryScreen(
                         }
                         DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                             SortOption.entries.forEach { sort ->
+                                val isSelected = uiState.sortOption == sort
                                 DropdownMenuItem(
                                     text = { Text(sort.label()) },
                                     onClick = { viewModel.setSortOption(sort); showSortMenu = false },
                                     leadingIcon = {
-                                        if (uiState.sortOption == sort) Icon(Icons.Default.Check, null)
+                                        if (isSelected) {
+                                            Icon(
+                                                if (uiState.sortAscending) Icons.Default.ArrowUpward
+                                                else Icons.Default.ArrowDownward,
+                                                contentDescription = null,
+                                            )
+                                        }
                                     },
                                 )
                             }

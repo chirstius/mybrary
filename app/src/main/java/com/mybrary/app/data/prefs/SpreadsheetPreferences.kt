@@ -22,6 +22,8 @@ class SpreadsheetPreferences @Inject constructor(
     private val AUTO_ADD_KEY = booleanPreferencesKey("auto_add_on_scan")
     private val ACTIVE_LIBRARY_ID_KEY = stringPreferencesKey("active_library_id")
     private val LIBRARIES_JSON_KEY = stringPreferencesKey("libraries_json")
+    private val SORT_OPTION_KEY = stringPreferencesKey("sort_option")
+    private val SORT_ASCENDING_KEY = booleanPreferencesKey("sort_ascending")
 
     val spreadsheetId: Flow<String?> = context.dataStore.data
         .map { prefs -> prefs[SPREADSHEET_ID_KEY]?.takeIf { it.isNotBlank() } }
@@ -55,5 +57,19 @@ class SpreadsheetPreferences @Inject constructor(
 
     suspend fun setLibrariesJson(json: String) {
         context.dataStore.edit { prefs -> prefs[LIBRARIES_JSON_KEY] = json }
+    }
+
+    val sortOption: Flow<String> = context.dataStore.data
+        .map { prefs -> prefs[SORT_OPTION_KEY] ?: "DATE_ADDED" }
+
+    val sortAscending: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[SORT_ASCENDING_KEY] ?: true }
+
+    suspend fun setSortOption(option: String) {
+        context.dataStore.edit { prefs -> prefs[SORT_OPTION_KEY] = option }
+    }
+
+    suspend fun setSortAscending(ascending: Boolean) {
+        context.dataStore.edit { prefs -> prefs[SORT_ASCENDING_KEY] = ascending }
     }
 }

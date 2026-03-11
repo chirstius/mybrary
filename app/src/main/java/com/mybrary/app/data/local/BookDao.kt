@@ -24,17 +24,27 @@ interface BookDao {
         AND (:status = '' OR status = :status)
         AND (:genre = '' OR genre = :genre)
         ORDER BY
-            CASE :sortBy
-                WHEN 'title' THEN title
-                WHEN 'author' THEN authors
-                ELSE dateAdded
-            END ASC
+            CASE WHEN :sortAsc = 1 THEN
+                CASE :sortBy
+                    WHEN 'title' THEN title
+                    WHEN 'author' THEN authors
+                    ELSE dateAdded
+                END
+            END ASC,
+            CASE WHEN :sortAsc = 0 THEN
+                CASE :sortBy
+                    WHEN 'title' THEN title
+                    WHEN 'author' THEN authors
+                    ELSE dateAdded
+                END
+            END DESC
     """)
     fun observeFiltered(
         libraryId: String,
         query: String,
         status: String,
         sortBy: String,
+        sortAsc: Boolean,
         genre: String,
     ): Flow<List<BookEntity>>
 

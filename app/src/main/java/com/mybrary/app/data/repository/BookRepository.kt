@@ -23,6 +23,7 @@ class BookRepository @Inject constructor(
         query: String = "",
         status: ReadingStatus? = null,
         sortBy: String = "dateAdded",
+        sortAsc: Boolean = true,
         genre: String? = null,
     ): Flow<List<Book>> =
         bookDao.observeFiltered(
@@ -30,6 +31,7 @@ class BookRepository @Inject constructor(
             query = query,
             status = status?.name ?: "",
             sortBy = sortBy,
+            sortAsc = sortAsc,
             genre = genre ?: "",
         ).map { list -> list.map { it.toDomain() } }
 
